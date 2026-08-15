@@ -12,13 +12,8 @@
 
 set -euo pipefail
 
-USER="${1:-}"
+USER="${1:-LCEMA36}"
 REPO="${2:-travel-dashboard}"
-
-if [ -z "$USER" ]; then
-  echo "Usage: ./push-to-github.sh <your-github-username> [repo-name]" >&2
-  exit 1
-fi
 
 # Safety: refuse to push if .env somehow got tracked.
 if git ls-files --error-unmatch .env >/dev/null 2>&1; then
@@ -27,19 +22,14 @@ if git ls-files --error-unmatch .env >/dev/null 2>&1; then
   exit 1
 fi
 
-if command -v gh >/dev/null 2>&1; then
-  echo "Creating repo with the GitHub CLI..."
-  gh repo create "$REPO" --public --source=. --remote=origin --push
-else
-  echo "GitHub CLI not found — create the repo first at:"
-  echo "   https://github.com/new   (name it: $REPO, Public, no README/gitignore/license)"
-  echo
-  read -r -p "Press Enter once the empty repo exists..."
-  git remote remove origin 2>/dev/null || true
-  git remote add origin "https://github.com/$USER/$REPO.git"
-  git branch -M main
-  git push -u origin main
-fi
+# The remote is already set to https://github.com/LCEMA36/travel-dashboard.git
+# and both commits are made — this just points it at the right place and pushes.
+git remote remove origin 2>/dev/null || true
+git remote add origin "https://github.com/$USER/$REPO.git"
+git branch -M main
+
+echo "Pushing to https://github.com/$USER/$REPO.git ..."
+git push -u origin main
 
 echo
 echo "Pushed. Next steps:"
