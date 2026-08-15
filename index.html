@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B1A2E">
+<title>Beau's Travel Dashboard</title>
+<style>
+  /* ------------------------------------------------------------------
+     Palette sampled directly from the Delta artwork used as the
+     background: sky blue #238DF0, cloud #A6D6F8, tail navy #1B4F8D,
+     uniform navy #17253A, sleeve gold #F9B854, fuselage cream #F8F2E9,
+     Delta red #E01933.
+
+     Every text/status color below was contrast-checked against the card
+     surface (#0E2038): primary text 14.5:1, secondary 10.2:1, muted
+     7.4:1, and all four status colors between 5.2:1 and 8.9:1 — so
+     everything clears WCAG AA even in bright airport lighting.
+     ------------------------------------------------------------------ */
+  :root {
+    color-scheme: dark;
+
+    --navy-deep:      #0B1A2E;   /* page base behind the photo */
+    --surface-card:   #0E2038;   /* card surface (contrast reference) */
+    --surface-raised: #14294a;   /* live-status panel, inputs */
+    --delta-navy:     #1B4F8D;
+    --sky:            #238DF0;
+    --sky-light:      #5BAEF7;
+    --cloud:          #A6D6F8;
+    --delta-red:      #E01933;
+    --gold:           #F9B854;
+    --gold-light:     #FFC72C;
+
+    --text-primary:   #F5F1E8;   /* fuselage cream */
+    --text-secondary: #BFCEE0;
+    --text-muted:     #9DB0C7;
+
+    --status-good:     #22C55E;
+    --status-warning:  #FAB219;
+    --status-serious:  #EC835A;
+    --status-critical: #F1616A;
+
+    --hairline:  rgba(245, 241, 232, 0.14);
+    --card-blur: saturate(130%) blur(14px);
+
+    /* Scrim opacity over the photo — raised by the "Dim photo" toggle
+       for readability in direct sunlight. */
+    --scrim-top:    0.42;
+    --scrim-bottom: 0.88;
+  }
+
+  :root[data-dim="on"] {
+    --scrim-top:    0.78;
+    --scrim-bottom: 0.95;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { min-height: 100%; }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--text-primary);
+    background: var(--navy-deep);
+    padding: 0 16px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Background photo lives in a fixed layer rather than using
+     background-attachment: fixed, which stutters badly on iOS Safari —
+     and family will mostly be checking this on phones. */
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background-image: url('assets/beau-delta-bg-mobile.jpg');
+    background-size: cover;
+    /* A 16:9 image cropped into a tall phone screen only shows a narrow
+       vertical slice — anchor it on the pilot (~30% across) so the subject
+       is what's visible, not a random patch of fuselage. */
+    background-position: 30% center;
+  }
+  @media (min-width: 800px) {
+    .bg-layer {
+      background-image: url('assets/beau-delta-bg.jpg');
+      background-position: center 30%;
+    }
+  }
+  .bg-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(
+        to bottom,
+        rgba(11, 26, 46, var(--scrim-top)) 0%,
+        rgba(11, 26, 46, calc((var(--scrim-top) + var(--scrim-bottom)) / 2)) 38%,
+        rgba(11, 26, 46, var(--scrim-bottom)) 100%
+      );
+    transition: background 240ms ease;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  /* ---------- header ---------- */
+  header {
+    padding: 30px 0 22px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .title-row { display: flex; align-items: center; gap: 11px; }
+
+  /* The Delta "widget" — two triangles, drawn in CSS */
+  .widget {
+    width: 26px; height: 24px; flex: none;
+    position: relative; top: 1px;
+  }
+  .widget span {
+    position: absolute; inset: 0;
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+  .widget .w-red  { background: var(--delta-red); }
+  .widget .w-navy { background: var(--sky); clip-path: polygon(50% 0%, 50% 100%, 0% 100%); }
+
+  h1 {
+    font-size: 21px;
+    margin: 0;
+    letter-spacing: -0.01em;
+    text-shadow: 0 1px 12px rgba(0,0,0,0.5);
+  }
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    margin: 5px 0 0 37px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+  }
+
+  .dim-toggle {
+    border: 1px solid var(--hairline);
+    background: rgba(14, 32, 56, 0.72);
+    -webkit-backdrop-filter: var(--card-blur);
+    backdrop-filter: var(--card-blur);
+    color: var(--text-secondary);
+    border-radius: 9px;
+    padding: 7px 11px;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex: none;
+  }
+  .dim-toggle:hover { color: var(--text-primary); border-color: rgba(245,241,232,0.3); }
+
+  .updated-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 22px;
+    padding-left: 2px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+  }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 30px; }
+  .section-title {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--cloud);
+    margin-bottom: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 9px;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+  }
+  .section-title::after {
+    content: "";
+    flex: 1; height: 1px;
+    background: linear-gradient(to right, var(--hairline), transparent);
+  }
+
+  /* ---------- cards ---------- */
+  .card {
+    background: rgba(14, 32, 56, 0.82);
+    -webkit-backdrop-filter: var(--card-blur);
+    backdrop-filter: var(--card-blur);
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    padding: 16px 17px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.34);
+    position: relative;
+    overflow: hidden;
+  }
+  /* Gold accent rule down the leading edge, echoing the sleeve stripes */
+  .card::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--gold), rgba(249, 184, 84, 0.15));
+  }
+
+  .flight-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .flight-route {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .flight-route .arrow { color: var(--gold); margin: 0 3px; font-weight: 400; }
+  .flight-meta { font-size: 13px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+  .flight-purpose {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 9px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(245, 241, 232, 0.09);
+  }
+
+  /* ---------- status badges ---------- */
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700;
+    padding: 5px 10px; border-radius: 999px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    border: 1px solid currentColor;
+    flex: none;
+  }
+  .badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; flex: none;
+  }
+  .badge-good     { color: var(--status-good);     background: rgba(34, 197, 94, 0.13); }
+  .badge-warning  { color: var(--status-warning);  background: rgba(250, 178, 25, 0.13); }
+  .badge-serious  { color: var(--status-serious);  background: rgba(236, 131, 90, 0.13); }
+  .badge-critical { color: var(--status-critical); background: rgba(241, 97, 106, 0.14); }
+  .badge-muted    { color: var(--text-muted);      background: rgba(157, 176, 199, 0.11); }
+  /* In-air badge gets a gentle pulse so an active flight stands out */
+  .badge-live::before { animation: pulse 1.9s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.28; } }
+  @media (prefers-reduced-motion: reduce) {
+    .badge-live::before { animation: none; }
+  }
+
+  /* ---------- live status panel ---------- */
+  .live-panel {
+    margin-top: 13px;
+    padding: 12px 13px;
+    background: rgba(20, 41, 74, 0.75);
+    border: 1px solid rgba(91, 174, 247, 0.22);
+    border-radius: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px 14px;
+    font-size: 13px;
+  }
+  .live-panel .label {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+  }
+  .live-panel .value { font-weight: 700; margin-top: 2px; color: var(--text-primary); }
+  .live-panel .value.accent { color: var(--sky-light); }
+
+  /* ---------- hotels ---------- */
+  .hotel-name { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .hotel-meta { font-size: 12.5px; color: var(--text-secondary); margin-top: 5px; }
+  .hotel-dates {
+    font-size: 13px; margin-top: 12px;
+    display: flex; gap: 22px; flex-wrap: wrap;
+  }
+  .hotel-dates .label {
+    color: var(--text-muted); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    display: block; margin-bottom: 2px; font-weight: 600;
+  }
+  .hotel-dates .val { font-weight: 600; }
+
+  .empty {
+    color: var(--text-muted); font-size: 13.5px;
+    padding: 24px 18px; text-align: center;
+    border: 1px dashed rgba(245, 241, 232, 0.2);
+    border-radius: 14px;
+    background: rgba(14, 32, 56, 0.55);
+    -webkit-backdrop-filter: var(--card-blur);
+    backdrop-filter: var(--card-blur);
+  }
+
+  footer {
+    text-align: center; color: var(--text-muted);
+    font-size: 11.5px; margin-top: 38px; line-height: 1.7;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+  }
+
+  @media (max-width: 420px) {
+    h1 { font-size: 19px; }
+    .flight-route { font-size: 17.5px; }
+    .live-panel { grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-layer" role="presentation"></div>
+  <div class="bg-scrim" role="presentation"></div>
+
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title-row">
+          <div class="widget" role="presentation"><span class="w-red"></span><span class="w-navy"></span></div>
+          <h1>Beau's Travel Dashboard</h1>
+        </div>
+        <div class="subtitle">Flights &amp; hotels — Cox Automotive travel</div>
+      </div>
+      <button class="dim-toggle" id="dimToggle" type="button">Dim photo</button>
+    </header>
+
+    <div class="updated-note" id="updatedNote">Loading…</div>
+
+    <section>
+      <div class="section-title">Flights</div>
+      <div id="flightsList"></div>
+    </section>
+
+    <section>
+      <div class="section-title">Hotels</div>
+      <div id="hotelsList"></div>
+    </section>
+
+    <footer>
+      Synced automatically from TripIt · Live status from AviationStack
+    </footer>
+  </div>
+
+<script>
+const DATA_URL = 'data/trips.json';
+const LIVE_URL = 'data/live-status.json';
+
+// Trip times are stored with an explicit UTC offset representing the LOCAL
+// time at that airport/hotel (e.g. departure time as printed on the ticket).
+// We deliberately do NOT run these through the browser's local timezone — a
+// flight leaving Atlanta at 8:15am should read "8:15 AM" whether it's being
+// checked from Dallas or from the gate. So parse the ISO string's own fields.
+function parseLocalIso(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso || '');
+  if (!m) return null;
+  const [, y, mo, d, h, mi] = m.map(Number);
+  return { y, mo, d, h, mi, weekday: new Date(Date.UTC(y, mo - 1, d)).getUTCDay() };
+}
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function fmtDateTime(iso) {
+  const p = parseLocalIso(iso);
+  if (!p) return '—';
+  const h12 = ((p.h + 11) % 12) + 1;
+  const ampm = p.h < 12 ? 'AM' : 'PM';
+  return `${WEEKDAYS[p.weekday]}, ${MONTHS[p.mo - 1]} ${p.d}, ${h12}:${String(p.mi).padStart(2, '0')} ${ampm}`;
+}
+function fmtTimeOnly(iso) {
+  const p = parseLocalIso(iso);
+  if (!p) return '—';
+  const h12 = ((p.h + 11) % 12) + 1;
+  return `${h12}:${String(p.mi).padStart(2, '0')} ${p.h < 12 ? 'AM' : 'PM'}`;
+}
+function fmtDate(iso) {
+  const p = parseLocalIso(iso);
+  if (!p) return '—';
+  return `${WEEKDAYS[p.weekday]}, ${MONTHS[p.mo - 1]} ${p.d}`;
+}
+
+function statusBadge(status) {
+  const map = {
+    scheduled: { cls: 'badge-muted',    label: 'Scheduled' },
+    on_time:   { cls: 'badge-good',     label: 'On time' },
+    boarding:  { cls: 'badge-good',     label: 'Boarding' },
+    departed:  { cls: 'badge-good badge-live', label: 'In the air' },
+    active:    { cls: 'badge-good badge-live', label: 'In the air' },
+    delayed:   { cls: 'badge-warning',  label: 'Delayed' },
+    diverted:  { cls: 'badge-serious',  label: 'Diverted' },
+    cancelled: { cls: 'badge-critical', label: 'Cancelled' },
+    landed:    { cls: 'badge-muted',    label: 'Landed' },
+    unknown:   { cls: 'badge-muted',    label: 'No live data' }
+  };
+  const s = map[status] || map.unknown;
+  return `<span class="badge ${s.cls}">${s.label}</span>`;
+}
+
+function esc(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+function renderFlights(trips, live) {
+  const container = document.getElementById('flightsList');
+  const now = Date.now();
+  const flights = (trips.flights || []).slice()
+    .filter(f => {
+      const arr = f.destination && f.destination.scheduled_arrival;
+      return !arr || new Date(arr).getTime() >= now - 6 * 3600 * 1000;
+    })
+    .sort((a, b) => new Date(a.origin.scheduled_departure) - new Date(b.origin.scheduled_departure));
+
+  if (flights.length === 0) {
+    container.innerHTML = '<div class="empty">No upcoming flights right now.</div>';
+    return;
+  }
+
+  const liveById = {};
+  (live.flights || []).forEach(f => liveById[f.id] = f);
+
+  container.innerHTML = flights.map(f => {
+    const l = liveById[f.id];
+    const status = l ? l.status : 'scheduled';
+
+    let livePanel = '';
+    if (l) {
+      const gate = l.departure_gate || f.origin.gate;
+      const term = l.departure_terminal || f.origin.terminal;
+      const estDep = l.estimated_departure || f.origin.scheduled_departure;
+      const estArr = l.estimated_arrival || f.destination.scheduled_arrival;
+      const depChanged = l.estimated_departure && l.delay_minutes;
+      livePanel = `
+        <div class="live-panel">
+          <div><div class="label">Gate</div><div class="value accent">${esc(gate || '—')}</div></div>
+          <div><div class="label">Terminal</div><div class="value">${esc(term || '—')}</div></div>
+          <div><div class="label">${depChanged ? 'Est. departure' : 'Departs'}</div><div class="value">${fmtTimeOnly(estDep)}</div></div>
+          <div><div class="label">${l.estimated_arrival ? 'Est. arrival' : 'Arrives'}</div><div class="value">${fmtTimeOnly(estArr)}</div></div>
+        </div>`;
+    }
+
+    // Sync sources don't always parse every field cleanly — fall back to the
+    // raw event title rather than rendering "undefined".
+    const route = (f.origin.airport && f.destination.airport)
+      ? `${esc(f.origin.airport)}<span class="arrow">→</span>${esc(f.destination.airport)}`
+      : esc(f.raw_summary || 'Flight');
+
+    const meta = [f.airline, f.flight_number, fmtDateTime(f.origin.scheduled_departure)]
+      .filter(Boolean).map(esc);
+    // Show scheduled terminal/gate until live tracking has its own values.
+    if (!l && f.origin.terminal) meta.push('Terminal ' + esc(f.origin.terminal));
+    if (!l && f.origin.gate) meta.push('Gate ' + esc(f.origin.gate));
+
+    const purposeBits = [f.purpose, f.confirmation ? 'Conf# ' + f.confirmation : null]
+      .filter(Boolean).map(esc);
+
+    return `
+      <div class="card">
+        <div class="flight-top">
+          <div>
+            <div class="flight-route">${route}</div>
+            <div class="flight-meta">${meta.join(' · ')}</div>
+          </div>
+          ${statusBadge(status)}
+        </div>
+        ${purposeBits.length ? `<div class="flight-purpose">${purposeBits.join(' · ')}</div>` : ''}
+        ${livePanel}
+      </div>`;
+  }).join('');
+}
+
+function renderHotels(trips) {
+  const container = document.getElementById('hotelsList');
+  const now = Date.now();
+  const hotels = (trips.hotels || []).slice()
+    .filter(h => !h.check_out || new Date(h.check_out).getTime() >= now - 24 * 3600 * 1000)
+    .sort((a, b) => new Date(a.check_in || a.check_out) - new Date(b.check_in || b.check_out));
+
+  if (hotels.length === 0) {
+    container.innerHTML = '<div class="empty">No upcoming hotel stays right now.</div>';
+    return;
+  }
+
+  container.innerHTML = hotels.map(h => `
+    <div class="card">
+      <div class="hotel-name">${esc(h.name || h.raw_summary || 'Hotel stay')}</div>
+      ${(h.address || h.city) ? `<div class="hotel-meta">${esc(h.address || h.city)}</div>` : ''}
+      <div class="hotel-dates">
+        <div><span class="label">Check-in</span><span class="val">${fmtDate(h.check_in)}</span></div>
+        <div><span class="label">Check-out</span><span class="val">${fmtDate(h.check_out)}</span></div>
+        ${h.confirmation ? `<div><span class="label">Conf#</span><span class="val">${esc(h.confirmation)}</span></div>` : ''}
+      </div>
+      ${h.purpose ? `<div class="flight-purpose">${esc(h.purpose)}</div>` : ''}
+    </div>`).join('');
+}
+
+async function load() {
+  try {
+    const [tripsRes, liveRes] = await Promise.all([
+      fetch(DATA_URL + '?_=' + Date.now()),
+      fetch(LIVE_URL + '?_=' + Date.now())
+    ]);
+    const trips = await tripsRes.json();
+    const live = await liveRes.json();
+
+    renderFlights(trips, live);
+    renderHotels(trips);
+
+    const note = document.getElementById('updatedNote');
+    note.textContent = live.updated_at
+      ? 'Live flight status last checked ' + new Date(live.updated_at)
+          .toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+      : 'Live flight status not checked yet';
+  } catch (e) {
+    document.getElementById('updatedNote').textContent = 'Could not load trip data.';
+    console.error(e);
+  }
+}
+
+const dimToggle = document.getElementById('dimToggle');
+dimToggle.addEventListener('click', () => {
+  const on = document.documentElement.getAttribute('data-dim') === 'on';
+  document.documentElement.setAttribute('data-dim', on ? 'off' : 'on');
+  dimToggle.textContent = on ? 'Dim photo' : 'Show photo';
+});
+
+load();
+setInterval(load, 5 * 60 * 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "_comment": "This file is the source of truth for the dashboard. It's overwritten automatically by scripts/sync_tripit_calendar.py once TRIPIT_ICAL_URL is set up (see README), or you can edit it by hand right here in GitHub any time before that. Dates are ISO 8601 in the airport's/hotel's local time, with an explicit timezone offset.",
+  "traveler": "Beau Moore",
+  "flights": [
+    {
+      "id": "example-flight-1",
+      "airline": "Delta",
+      "flight_number": "DL1234",
+      "origin": {
+        "airport": "ATL",
+        "city": "Atlanta",
+        "terminal": "S",
+        "scheduled_departure": "2026-08-20T08:15:00-04:00"
+      },
+      "destination": {
+        "airport": "DFW",
+        "city": "Dallas",
+        "terminal": "D",
+        "scheduled_arrival": "2026-08-20T09:50:00-05:00"
+      },
+      "confirmation": "ABC123",
+      "purpose": "Cox Automotive",
+      "notes": "Example row — delete once real trips are added or replaced by TripIt sync."
+    }
+  ],
+  "hotels": [
+    {
+      "id": "example-hotel-1",
+      "name": "Example Hotel & Suites",
+      "city": "Dallas",
+      "address": "123 Main St, Dallas, TX",
+      "check_in": "2026-08-20T15:00:00-05:00",
+      "check_out": "2026-08-22T11:00:00-05:00",
+      "confirmation": "HOTEL456",
+      "notes": "Example row — delete once real trips are added or replaced by TripIt sync."
+    }
+  ]
+}

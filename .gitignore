@@ -1,0 +1,6 @@
+# Local-only secrets for testing before this is pushed to GitHub.
+# Real credentials belong in GitHub repo secrets (Settings -> Secrets and
+# variables -> Actions), never committed here.
+.env
+__pycache__/
+*.pyc

@@ -1,0 +1,41 @@
+name: Sync trips from TripIt calendar feed
+
+on:
+  schedule:
+    # Every 3 hours. TripIt's own feed refresh is 15min-24h depending on
+    # client, so this is a reasonable outer bound.
+    - cron: "0 */3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install icalendar
+
+      - name: Sync trips from TripIt
+        env:
+          TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
+        run: python3 scripts/sync_tripit_calendar.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "travel-dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if ! git diff --quiet -- data/trips.json; then
+            git add data/trips.json
+            git commit -m "Sync trips from TripIt"
+            git push
+          else
+            echo "No change in trips."
+          fi

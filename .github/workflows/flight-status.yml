@@ -1,0 +1,37 @@
+name: Update live flight status
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub may delay this a few minutes under load.
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch live flight status
+        env:
+          AVIATIONSTACK_KEY: ${{ secrets.AVIATIONSTACK_KEY }}
+        run: python3 scripts/flight_status.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name "travel-dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if ! git diff --quiet -- data/live-status.json; then
+            git add data/live-status.json
+            git commit -m "Update live flight status"
+            git push
+          else
+            echo "No change in live status."
+          fi
