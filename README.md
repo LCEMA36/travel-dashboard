@@ -36,15 +36,46 @@ the repo, add the same key as a GitHub *secret* (step 4 below) — that's the
 only place it needs to live for the scheduled Actions to use it. If you
 ever want to hand this repo to someone else, delete your local `.env` first.
 
+## Look & feel
+
+The dashboard is themed from `assets/beau-delta-bg.jpg`, which is also the
+site background (fixed, with a navy scrim over it so text stays readable).
+The palette is sampled straight out of that artwork — sky blue `#238DF0`,
+cloud `#A6D6F8`, tail navy `#1B4F8D`, sleeve gold `#F9B854`, fuselage cream
+`#F5F1E8`, Delta red `#E01933`.
+
+Every text and status color was contrast-checked against the card surface
+(`#0E2038`): body text 14.5:1, secondary 10.2:1, muted 7.4:1, and the four
+status colors between 5.2:1 and 8.9:1 — all clearing WCAG AA, which matters
+when someone's reading this on a phone in a bright terminal.
+
+The **Dim photo** button in the header raises the scrim for direct sunlight.
+Phones get a 62 KB version of the background and desktops a 184 KB one, so
+it stays fast on cell data.
+
+To swap the background later, drop a new image in `assets/` and update the
+two `background-image` lines near the top of `index.html`.
+
 ## 1. Get this onto GitHub
+
+The folder already has a git repo with everything committed, so you just
+need to push it:
 
 ```bash
 cd travel-dashboard
-git init
-git add .
-git commit -m "Initial travel dashboard"
-gh repo create travel-dashboard --public --source=. --push
-# or create the repo on github.com and: git remote add origin <url>; git push -u origin main
+./push-to-github.sh <your-github-username>
+```
+
+That script creates the repo (or walks you through creating an empty one),
+pushes, and prints the follow-up steps. It also refuses to run if `.env`
+ever became tracked, so your API key can't get published by accident.
+
+Prefer to do it by hand?
+
+```bash
+cd travel-dashboard
+git remote add origin https://github.com/<username>/travel-dashboard.git
+git push -u origin main
 ```
 
 ## 2. Turn on GitHub Pages
