@@ -281,6 +281,60 @@
   }
   .hotel-dates .val { font-weight: 600; }
 
+  /* ---------- map preview (OpenStreetMap raster tiles) ---------- */
+  .map {
+    display: block;
+    position: relative;
+    height: 150px;
+    margin-top: 13px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(245, 241, 232, 0.16);
+    background: #1a2b45;
+    text-decoration: none;
+  }
+  /* The tile layer is laid out at a fixed width and then centered, so the
+     geographic point stays under the pin at any card width. */
+  .map-tiles {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 768px; height: 150px;
+    transform: translateX(-50%);
+  }
+  .map .tile {
+    position: absolute;
+    width: 256px; height: 256px;
+    /* Tone the light OSM tiles down so they sit inside the dark card
+       without glaring, while staying legible. */
+    filter: grayscale(0.35) brightness(0.72) contrast(1.06) saturate(0.85);
+  }
+  .map::after {
+    /* soft vignette so the card edge reads as intentional */
+    content: "";
+    position: absolute; inset: 0;
+    box-shadow: inset 0 0 22px rgba(11, 26, 46, 0.55);
+    pointer-events: none;
+  }
+  .map:hover .tile { filter: grayscale(0.15) brightness(0.85) contrast(1.05); }
+  .map-pin {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 14px; height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--delta-red);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  }
+  .map-credit {
+    position: absolute; right: 6px; bottom: 5px;
+    font-size: 9.5px; color: var(--text-secondary);
+    background: rgba(11, 26, 46, 0.72);
+    padding: 2px 6px; border-radius: 5px;
+    letter-spacing: 0.01em;
+  }
+
   /* ---------- action links (FlightAware / maps / call) ---------- */
   .actions {
     display: flex; flex-wrap: wrap; gap: 8px;
@@ -442,11 +496,33 @@ function esc(str) {
 
 // ---------- deep links ----------
 
-// FlightAware accepts the IATA ident (e.g. DL1625) and redirects to the
-// canonical tracking page for that flight.
+// FlightAware identifies flights by ATC callsign, which uses the 3-letter
+// ICAO airline code — NOT the 2-letter IATA code TripIt gives us. "DL1625"
+// returns "flight not found"; "DAL1625" is the one that resolves.
+const IATA_TO_ICAO = {
+  DL: 'DAL', AA: 'AAL', UA: 'UAL', WN: 'SWA', AS: 'ASA', B6: 'JBU',
+  NK: 'NKS', F9: 'FFT', HA: 'HAL', G4: 'AAY', SY: 'SCX',
+  // Regional carriers that fly as Delta/American/United Connection
+  '9E': 'EDV', OO: 'SKW', YX: 'RPA', MQ: 'ENY', OH: 'JIA', YV: 'ASH',
+  QX: 'QXE', ZW: 'AWI', CP: 'CPZ', PT: 'PDT', EV: 'ASQ', G7: 'GJS',
+  // Common international
+  AC: 'ACA', BA: 'BAW', LH: 'DLH', AF: 'AFR', KL: 'KLM', VS: 'VIR',
+  IB: 'IBE', EI: 'EIN', LX: 'SWR', OS: 'AUA', SN: 'BEL', AZ: 'ITY',
+  EK: 'UAE', QR: 'QTR', EY: 'ETD', SQ: 'SIA', CX: 'CPA', NH: 'ANA',
+  JL: 'JAL', KE: 'KAL', OZ: 'AAR', QF: 'QFA', NZ: 'ANZ', AM: 'AMX',
+  AV: 'AVA', CM: 'CMP', LA: 'LAN', TK: 'THY', SK: 'SAS', AY: 'FIN',
+  TP: 'TAP', UX: 'AEA', VY: 'VLG', FR: 'RYR', U2: 'EZY', WS: 'WJA'
+};
+
 function flightAwareUrl(f) {
-  const ident = (f.flight_number || '').replace(/\s+/g, '');
-  return ident ? 'https://www.flightaware.com/live/flight/' + encodeURIComponent(ident) : null;
+  const ident = (f.flight_number || '').replace(/\s+/g, '').toUpperCase();
+  const m = /^([A-Z0-9]{2})(\d{1,4})$/.exec(ident);
+  if (!m) return ident ? 'https://www.flightaware.com/live/flight/' + encodeURIComponent(ident) : null;
+  const [, iata, num] = m;
+  // Fall back to the raw ident for airlines not in the table — some still
+  // resolve, and it beats no link at all.
+  const icao = IATA_TO_ICAO[iata] || iata;
+  return 'https://www.flightaware.com/live/flight/' + encodeURIComponent(icao + num);
 }
 
 // The sync writes a `phone` field, but older records only have the number
@@ -476,6 +552,66 @@ function appleMapsUrl(h) {
 function wazeUrl(h) {
   const d = hotelDestination(h);
   return d ? 'https://waze.com/ul?q=' + encodeURIComponent(d) + '&navigate=yes' : null;
+}
+
+// ---------- map preview ----------
+// Built from OpenStreetMap raster tiles as plain <img> elements rather than
+// an embedded iframe: third-party frames get blocked by common browser
+// privacy settings (verified — the iframe rendered blank), while tiles load
+// fine. No API key needed either way.
+// MAP_W must match the .map-tiles width in CSS — the layer is rendered at
+// this width then centered, so the pin lines up on any screen size.
+const MAP_ZOOM = 15, MAP_W = 768, MAP_H = 150;
+
+function lonLatToPixel(lat, lon, z) {
+  const n = 2 ** z * 256;
+  const latR = lat * Math.PI / 180;
+  return {
+    px: (lon + 180) / 360 * n,
+    py: (1 - Math.log(Math.tan(latR) + 1 / Math.cos(latR)) / Math.PI) / 2 * n
+  };
+}
+
+function mapPreview(h) {
+  const lat = parseFloat(h.lat), lon = parseFloat(h.lon);
+  if (!isFinite(lat) || !isFinite(lon)) return '';   // no coords yet — skip the map entirely
+
+  const W = MAP_W, H = MAP_H;
+  const { px, py } = lonLatToPixel(lat, lon, MAP_ZOOM);
+  const originX = px - W / 2, originY = py - H / 2;
+  const x0 = Math.floor(originX / 256), x1 = Math.floor((originX + W) / 256);
+  const y0 = Math.floor(originY / 256), y1 = Math.floor((originY + H) / 256);
+
+  let tiles = '';
+  for (let x = x0; x <= x1; x++) {
+    for (let y = y0; y <= y1; y++) {
+      const left = Math.round(x * 256 - originX);
+      const top = Math.round(y * 256 - originY);
+      tiles += `<img class="tile" alt="" aria-hidden="true" loading="lazy" `
+        + `src="https://tile.openstreetmap.org/${MAP_ZOOM}/${x}/${y}.png" `
+        + `style="left:${left}px;top:${top}px">`;
+    }
+  }
+
+  const open = appleMapsUrl(h) || wazeUrl(h) || '#';
+  return `
+    <a class="map" href="${esc(open)}" target="_blank" rel="noopener noreferrer"
+       aria-label="Map showing ${esc(h.name || 'the hotel')} — opens directions">
+      <div class="map-tiles">${tiles}</div>
+      <span class="map-pin" aria-hidden="true"></span>
+      <span class="map-credit">© OpenStreetMap</span>
+    </a>`;
+}
+
+// ---------- aircraft ----------
+// Assembled by flight_status.py from AviationStack's icao24 transponder code,
+// resolved to a type via hexdb.io. Only known once a flight is in the
+// tracking window, so this is absent for trips further out.
+function aircraftLabel(ac) {
+  if (!ac) return null;
+  const bits = [ac.manufacturer, ac.type].filter(Boolean).join(' ');
+  if (!bits) return null;
+  return ac.registration ? `${bits} · ${ac.registration}` : bits;
 }
 
 function actionLink(href, icon, label, cls) {
@@ -536,6 +672,11 @@ function renderFlights(trips, live) {
     if (!l && f.origin.terminal) meta.push('Terminal ' + esc(f.origin.terminal));
     if (!l && f.origin.gate) meta.push('Gate ' + esc(f.origin.gate));
 
+    // Aircraft lives in its own map so it survives after the live-tracking
+    // window closes.
+    const aircraft = aircraftLabel((live.aircraft || {})[f.id]);
+    if (aircraft) meta.push(esc(aircraft));
+
     const purposeBits = [f.purpose, f.confirmation ? 'Conf# ' + f.confirmation : null]
       .filter(Boolean).map(esc);
 
@@ -587,6 +728,7 @@ function renderHotels(trips) {
         ${h.confirmation ? `<div><span class="label">Conf#</span><span class="val">${esc(h.confirmation)}</span></div>` : ''}
       </div>
       ${h.purpose ? `<div class="flight-purpose">${esc(h.purpose)}</div>` : ''}
+      ${mapPreview(h)}
       ${links ? `<div class="actions">${links}</div>` : ''}
     </div>`;
   }).join('');
