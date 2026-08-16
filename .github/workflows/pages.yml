@@ -3,6 +3,12 @@ name: Deploy dashboard to GitHub Pages
 on:
   push:
     branches: ["main"]
+  # A commit pushed by a workflow's own GITHUB_TOKEN does NOT trigger other
+  # workflows, so the sync jobs' commits would never redeploy the site and it
+  # would serve stale trips. Redeploy whenever a sync finishes.
+  workflow_run:
+    workflows: ["Sync trips from TripIt calendar feed", "Update live flight status"]
+    types: [completed]
   workflow_dispatch: {}
 
 permissions:
