@@ -109,6 +109,15 @@ MANUAL_RUN = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
 # earlier today doesn't vanish from the dashboard mid-day).
 PAST_CUTOFF = timedelta(hours=24)
 
+# --- Push notifications (ntfy) ------------------------------------------
+# Set NTFY_TOPIC as a GitHub secret. The topic name is the ONLY thing
+# protecting these messages — on the public ntfy.sh server anyone who knows
+# the topic can read it (and publish to it) — so it must never appear in
+# this repo, which is public. Unset = notifications are simply skipped.
+NTFY_TOPIC = (os.environ.get("NTFY_TOPIC") or "").strip()
+NTFY_SERVER = (os.environ.get("NTFY_SERVER") or "https://ntfy.sh").strip().rstrip("/")
+DASHBOARD_URL = "https://lcema36.github.io/travel-dashboard/"
+
 # US timezone abbreviations TripIt uses in its DESCRIPTION text, mapped to
 # UTC offset in hours. The abbreviation already encodes DST (EDT vs EST),
 # so no separate DST calculation is needed. Add more here if your itinerary
@@ -335,7 +344,7 @@ def geocode(address, cache):
            + urllib.parse.quote(address))
     try:
         req = urllib.request.Request(url, headers={
-            # Nominatim requires an identifying User-Agent.
+            # Nominatim requires a identifying User-Agent.
             "User-Agent": "travel-dashboard/1.0 (github.com/LCEMA36/travel-dashboard)"
         })
         with urllib.request.urlopen(req, timeout=20) as resp:
@@ -352,6 +361,127 @@ def geocode(address, cache):
         print(f"  WARN: geocoding failed for {address[:45]!r}: {e}", file=sys.stderr)
     cache[address] = (None, None)
     return None, None
+
+
+def _pretty(iso, with_date=True):
+    """'2026-08-17T07:08:00-05:00' -> 'Mon Aug 17, 7:08 AM'."""
+    if not iso:
+        return "time TBD"
+    try:
+        dt = datetime.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return str(iso)
+    t = dt.strftime("%-I:%M %p")
+    return f"{dt.strftime('%a %b %-d')}, {t}" if with_date else t
+
+
+def describe_flight(f):
+    o, d = f.get("origin") or {}, f.get("destination") or {}
+    line = (f"{f.get('flight_number') or 'Flight'}  "
+            f"{o.get('airport') or '???'} to {d.get('airport') or '???'}")
+    return f"{line}\n   {_pretty(o.get('scheduled_departure'))} - " \
+           f"{_pretty(d.get('scheduled_arrival'), with_date=False)}"
+
+
+def describe_hotel(h):
+    nights = ""
+    try:
+        ci = datetime.fromisoformat(h["check_in"]).date()
+        co = datetime.fromisoformat(h["check_out"]).date()
+        n = (co - ci).days
+        nights = f" ({n} night{'s' if n != 1 else ''})"
+    except Exception:
+        pass
+    return (f"{h.get('name') or 'Hotel'}{nights}\n"
+            f"   {_pretty(h.get('check_in'))} -> {_pretty(h.get('check_out'))}")
+
+
+def _ntfy_send(title, message, tags):
+    """Publish one notification. Never raises — a failed push must not
+    fail the sync, or a flaky ntfy would stop trips syncing entirely."""
+    payload = json.dumps({
+        "topic": NTFY_TOPIC,
+        "title": title,
+        "message": message,
+        "tags": tags,
+        "click": DASHBOARD_URL,
+        "priority": 4,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        NTFY_SERVER, data=payload,
+        headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            print(f"Notification sent ({resp.status}): {title}")
+        return True
+    except Exception as e:
+        print(f"WARN: couldn't send notification ({type(e).__name__}: {e}). "
+              f"Sync itself is unaffected.", file=sys.stderr)
+        return False
+
+
+def notify_changes(old_trips, flights, hotels):
+    """Compare what we just parsed against the previously committed
+    trips.json and push a notification for anything genuinely new."""
+    if not NTFY_TOPIC:
+        print("NTFY_TOPIC not set — skipping notifications.")
+        return
+
+    old_flights = {f.get("id"): f for f in old_trips.get("flights", []) if f.get("id")}
+    old_hotels = {h.get("id"): h for h in old_trips.get("hotels", []) if h.get("id")}
+
+    # First ever run against an empty dashboard would announce the whole
+    # itinerary at once. Stay quiet and start watching from here.
+    if not old_flights and not old_hotels:
+        print("No previous trips on record — skipping the first notification "
+              "so we don't announce the entire existing itinerary.")
+        return
+
+    new_flights = [f for f in flights if f.get("id") not in old_flights]
+    new_hotels = [h for h in hotels if h.get("id") not in old_hotels]
+
+    # A schedule change matters as much as a brand-new booking.
+    moved = []
+    for f in flights:
+        prev = old_flights.get(f.get("id"))
+        if not prev:
+            continue
+        was = (prev.get("origin") or {}).get("scheduled_departure")
+        now_ = (f.get("origin") or {}).get("scheduled_departure")
+        if was and now_ and was != now_:
+            moved.append((f, was))
+
+    if not (new_flights or new_hotels or moved):
+        print("Nothing new to notify about.")
+        return
+
+    # Trip name, when every new item shares one, makes a much better title.
+    purposes = {i.get("purpose") for i in new_flights + new_hotels if i.get("purpose")}
+    if new_flights or new_hotels:
+        if len(purposes) == 1:
+            title = f"Beau: trip added - {purposes.pop()}"
+        else:
+            title = "Beau: new travel booked"
+    else:
+        title = "Beau: flight time changed"
+
+    lines = []
+    if new_flights:
+        lines.append("FLIGHTS")
+        lines += [describe_flight(f) for f in new_flights]
+    if new_hotels:
+        if lines:
+            lines.append("")
+        lines.append("HOTELS")
+        lines += [describe_hotel(h) for h in new_hotels]
+    for f, was in moved:
+        if lines:
+            lines.append("")
+        lines.append(f"CHANGED: {f.get('flight_number') or 'Flight'} now departs "
+                     f"{_pretty((f.get('origin') or {}).get('scheduled_departure'))} "
+                     f"(was {_pretty(was)})")
+
+    _ntfy_send(title, "\n".join(lines), ["airplane"])
 
 
 def main():
@@ -479,6 +609,10 @@ def main():
     for old in trips.get("hotels", []):
         if old.get("address") and old.get("lat") and old.get("lon"):
             geo_cache[old["address"]] = (old["lat"], old["lon"])
+
+    # Notify BEFORE overwriting trips.json — `trips` still holds the
+    # previously committed state, which is what "new" is measured against.
+    notify_changes(trips, flights, hotels)
 
     for h in hotels:
         h["lat"], h["lon"] = geocode(h.get("address"), geo_cache)
