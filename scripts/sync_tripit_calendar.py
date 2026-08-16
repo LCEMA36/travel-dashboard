@@ -94,8 +94,13 @@ def _locate(filename):
 
 TRIPS_PATH = _locate("trips.json")
 
-FEED_URL = os.environ.get("TRIPIT_ICAL_URL")
+# .strip() because pasting a URL into a GitHub secret box very easily picks up
+# a trailing newline or space, which makes the request fail in a confusing way.
+FEED_URL = (os.environ.get("TRIPIT_ICAL_URL") or "").strip()
 DEBUG = "--debug" in sys.argv
+# When a human clicked "Run workflow", a missing secret should fail loudly
+# rather than exit 0 and look like a successful sync that did nothing.
+MANUAL_RUN = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
 
 # How far back to keep trips that already happened (so a hotel checkout
 # earlier today doesn't vanish from the dashboard mid-day).
@@ -157,6 +162,15 @@ def to_iso(dt):
     return dt.isoformat() if dt else None
 
 
+def aware(dt):
+    """Normalize to a timezone-aware datetime. Mixing naive and aware
+    datetimes raises TypeError as soon as you compare or sort them, which is
+    an easy crash to hit on a real feed containing a floating-time event."""
+    if not isinstance(dt, datetime):
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
 def parse_flight(uid, summary, description, dtstart, dtend):
     lines = get_lines(description)
     idx = find_index(lines, "[Flight]")
@@ -168,8 +182,8 @@ def parse_flight(uid, summary, description, dtstart, dtend):
 
     airline = dep_terminal = dep_gate = None
     arr_city = arr_terminal = arr_gate = None
-    dep_local = dtstart if isinstance(dtstart, datetime) else None
-    arr_local = dtend if isinstance(dtend, datetime) else None
+    dep_local = aware(dtstart)
+    arr_local = aware(dtend)
 
     if idx != -1:
         if idx > 0 and (m := TIME_TZ_RE.match(lines[idx - 1])):
@@ -217,7 +231,7 @@ def parse_lodging_event(uid, summary, description, dtstart):
            ("checkout" if m else None)
     name = m.group(1).strip() if m else (lines[idx][7:].strip() if idx != -1 else summary)
 
-    local_dt = dtstart if isinstance(dtstart, datetime) else None
+    local_dt = aware(dtstart)
     address = phone = None
     if idx != -1:
         if idx > 0 and (tm := TIME_TZ_RE.match(lines[idx - 1])):
@@ -246,8 +260,8 @@ def merge_lodging(raw_events):
 
     hotels = []
     for name, events in by_name.items():
-        checkins = sorted((e for e in events if e["kind"] == "checkin"), key=lambda e: e["local_dt"] or datetime.min.replace(tzinfo=timezone.utc))
-        checkouts = sorted((e for e in events if e["kind"] == "checkout"), key=lambda e: e["local_dt"] or datetime.min.replace(tzinfo=timezone.utc))
+        checkins = sorted((e for e in events if e["kind"] == "checkin"), key=lambda e: aware(e["local_dt"]) or datetime.min.replace(tzinfo=timezone.utc))
+        checkouts = sorted((e for e in events if e["kind"] == "checkout"), key=lambda e: aware(e["local_dt"]) or datetime.min.replace(tzinfo=timezone.utc))
         # Best-effort pairing: zip sequential check-ins with the next
         # check-out at the same hotel. Doesn't handle multiple *overlapping*
         # stays at the same hotel name, but that's rare.
@@ -304,12 +318,50 @@ def assign_purpose(items, date_key, trip_windows, default="Cox Automotive"):
 
 def main():
     if not FEED_URL:
-        print("TRIPIT_ICAL_URL not set — skipping sync (no-op). "
-              "See README.md 'Getting your TripIt calendar feed URL'.", file=sys.stderr)
+        msg = ("TRIPIT_ICAL_URL is not set. Add it under "
+               "Settings -> Secrets and variables -> Actions.")
+        if MANUAL_RUN:
+            # Someone clicked "Run workflow" expecting a sync — don't let this
+            # pass as a green check.
+            print(f"ERROR: {msg}", file=sys.stderr)
+            sys.exit(1)
+        print(f"{msg} Skipping scheduled sync (no-op).", file=sys.stderr)
         return
 
-    with urllib.request.urlopen(FEED_URL, timeout=30) as resp:
-        raw = resp.read()
+    # file:// is allowed so a saved .ics can be tested locally.
+    if not FEED_URL.startswith(("http://", "https://", "webcal://", "file://")):
+        print(f"ERROR: TRIPIT_ICAL_URL doesn't look like a URL "
+              f"(starts with {FEED_URL[:12]!r}). It should look like "
+              f"https://www.tripit.com/feed/ical/private/<id>/tripit.ics",
+              file=sys.stderr)
+        sys.exit(1)
+
+    # webcal:// is what some calendar apps hand you — same thing over https.
+    url = FEED_URL.replace("webcal://", "https://", 1)
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "travel-dashboard/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+    except urllib.error.HTTPError as e:
+        print(f"ERROR: TripIt returned HTTP {e.code} for the feed URL.", file=sys.stderr)
+        if e.code in (401, 403, 404):
+            print("       That usually means the URL is wrong or the feed was "
+                  "reset. Get a fresh one from TripIt -> Profile -> Settings -> "
+                  "Calendar Feed and update the TRIPIT_ICAL_URL secret.", file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"ERROR: couldn't reach TripIt: {e.reason}", file=sys.stderr)
+        sys.exit(1)
+
+    if not raw.lstrip().startswith(b"BEGIN:VCALENDAR"):
+        preview = raw[:120].decode("utf-8", "replace")
+        print("ERROR: that URL didn't return a calendar file. First bytes:",
+              file=sys.stderr)
+        print(f"       {preview!r}", file=sys.stderr)
+        print("       Make sure the secret holds the .ics *feed* URL, not the "
+              "TripIt website URL.", file=sys.stderr)
+        sys.exit(1)
 
     cal = Calendar.from_ical(raw)
     now = datetime.now(timezone.utc)
@@ -318,26 +370,38 @@ def main():
     flights, lodging_raw, trip_windows = [], [], []
     skipped_other = 0
 
-    for component in cal.walk("VEVENT"):
-        summary = str(component.get("SUMMARY", "")).strip()
-        description = str(component.get("DESCRIPTION", "")).strip()
-        uid = str(component.get("UID", "")) or f"tripit-{abs(hash(summary + str(component.get('DTSTART'))))}"
-        dtstart = component.get("DTSTART").dt if component.get("DTSTART") else None
-        dtend = component.get("DTEND").dt if component.get("DTEND") else dtstart
+    events = list(cal.walk("VEVENT"))
+    print(f"Feed contains {len(events)} event(s).")
+    bad_events = 0
 
-        if DEBUG:
-            print(f"--- UID: {uid}\nSUMMARY: {summary}\nDESCRIPTION: {description}\nSTART: {dtstart}  END: {dtend}\n")
-            continue
+    for component in events:
+        # One malformed event shouldn't take down the whole sync — note it
+        # and keep going, so a single odd trip can't hide all the others.
+        try:
+            summary = str(component.get("SUMMARY", "")).strip()
+            description = str(component.get("DESCRIPTION", "")).strip()
+            uid = str(component.get("UID", "")) or f"tripit-{abs(hash(summary + str(component.get('DTSTART'))))}"
+            dtstart = component.get("DTSTART").dt if component.get("DTSTART") else None
+            dtend = component.get("DTEND").dt if component.get("DTEND") else dtstart
 
-        if "[Flight]" in description:
-            flights.append(parse_flight(uid, summary, description, dtstart, dtend))
-        elif "[Lodging]" in description:
-            lodging_raw.append(parse_lodging_event(uid, summary, description, dtstart))
-        elif (hdr := parse_trip_header(description, dtstart, dtend)):
-            start, end = hdr
-            trip_windows.append((start, end, summary))
-        else:
-            skipped_other += 1  # car rentals, restaurants, activities, etc. — not shown on the dashboard
+            if DEBUG:
+                print(f"--- UID: {uid}\nSUMMARY: {summary}\nDESCRIPTION: {description}\nSTART: {dtstart}  END: {dtend}\n")
+                continue
+
+            if "[Flight]" in description:
+                flights.append(parse_flight(uid, summary, description, dtstart, dtend))
+            elif "[Lodging]" in description:
+                lodging_raw.append(parse_lodging_event(uid, summary, description, dtstart))
+            elif (hdr := parse_trip_header(description, dtstart, dtend)):
+                start, end = hdr
+                trip_windows.append((start, end, summary))
+            else:
+                skipped_other += 1  # car rentals, restaurants, activities, etc. — not shown on the dashboard
+        except Exception as e:
+            bad_events += 1
+            print(f"  WARN: skipped an event that failed to parse "
+                  f"({type(e).__name__}: {e}) — SUMMARY was "
+                  f"{str(component.get('SUMMARY', ''))[:60]!r}", file=sys.stderr)
 
     if DEBUG:
         print("Debug mode — nothing written to trips.json.")
@@ -350,10 +414,10 @@ def main():
         if not iso:
             return True
         try:
-            dt = datetime.fromisoformat(iso)
+            dt = aware(datetime.fromisoformat(iso))
         except ValueError:
             return True
-        return dt >= cutoff
+        return dt is None or dt >= cutoff
 
     flights = [f for f in flights if still_relevant(f["destination"]["scheduled_arrival"])]
     hotels = [h for h in hotels if still_relevant(h["check_out"])]

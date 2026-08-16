@@ -41,7 +41,8 @@ def _locate(filename):
 TRIPS_PATH = _locate("trips.json")
 LIVE_PATH = _locate("live-status.json")
 
-API_KEY = os.environ.get("AVIATIONSTACK_KEY")
+API_KEY = (os.environ.get("AVIATIONSTACK_KEY") or "").strip()
+MANUAL_RUN = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
 API_URL = "https://api.aviationstack.com/v1/flights"
 
 WINDOW_BEFORE = timedelta(hours=12)   # start checking a flight this long before scheduled departure
@@ -137,7 +138,12 @@ def main():
     print(f"{len(in_window)} flight(s) in tracking window.")
 
     if not API_KEY:
-        print("No AVIATIONSTACK_KEY set — skipping live lookups, writing empty status.", file=sys.stderr)
+        msg = ("AVIATIONSTACK_KEY is not set. Add it under Settings -> "
+               "Secrets and variables -> Actions.")
+        if MANUAL_RUN:
+            print(f"ERROR: {msg}", file=sys.stderr)
+            sys.exit(1)
+        print(f"{msg} Skipping live lookups.", file=sys.stderr)
         results = []
     elif not in_window:
         results = []
