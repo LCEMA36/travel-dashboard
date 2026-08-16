@@ -37,10 +37,18 @@ jobs:
         run: |
           git config user.name "travel-dashboard-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -A -- data/trips.json trips.json 2>/dev/null || true
+          # Stage each candidate path separately. Passing both to one
+          # `git add` makes git abort with "pathspec did not match any files"
+          # when one of them doesn't exist — staging NOTHING and silently
+          # discarding the sync.
+          for f in data/trips.json trips.json; do
+            if [ -f "$f" ]; then git add -- "$f"; fi
+          done
           if git diff --cached --quiet; then
             echo "No change in trips."
           else
+            echo "Changes staged:"
+            git diff --cached --stat
             git commit -m "Sync trips from TripIt"
             git push
           fi
