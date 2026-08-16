@@ -75,8 +75,24 @@ except ImportError:
     print("Missing dependency: pip install icalendar", file=sys.stderr)
     raise
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TRIPS_PATH = os.path.join(REPO_ROOT, "data", "trips.json")
+def _locate(filename):
+    """Find a data file whether the repo uses the data/ folder layout or a
+    flattened one (a GitHub web-UI upload puts everything at the root)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(here)
+    candidates = [
+        os.path.join(repo_root, "data", filename),
+        os.path.join(repo_root, filename),
+        os.path.join(here, "data", filename),
+        os.path.join(here, filename),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
+
+TRIPS_PATH = _locate("trips.json")
 
 FEED_URL = os.environ.get("TRIPIT_ICAL_URL")
 DEBUG = "--debug" in sys.argv

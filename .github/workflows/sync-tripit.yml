@@ -26,16 +26,21 @@ jobs:
       - name: Sync trips from TripIt
         env:
           TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
-        run: python3 scripts/sync_tripit_calendar.py
+        run: |
+          # Works whether the repo uses scripts/ or has everything at the root.
+          SCRIPT=$(ls scripts/sync_tripit_calendar.py sync_tripit_calendar.py 2>/dev/null | head -1)
+          if [ -z "$SCRIPT" ]; then echo "sync_tripit_calendar.py not found"; exit 1; fi
+          echo "Running $SCRIPT"
+          python3 "$SCRIPT"
 
       - name: Commit if changed
         run: |
           git config user.name "travel-dashboard-bot"
           git config user.email "actions@users.noreply.github.com"
-          if ! git diff --quiet -- data/trips.json; then
-            git add data/trips.json
+          git add -A -- data/trips.json trips.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No change in trips."
+          else
             git commit -m "Sync trips from TripIt"
             git push
-          else
-            echo "No change in trips."
           fi

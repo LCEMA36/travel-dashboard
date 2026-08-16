@@ -20,9 +20,26 @@ import urllib.request
 import urllib.parse
 from datetime import datetime, timezone, timedelta
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TRIPS_PATH = os.path.join(REPO_ROOT, "data", "trips.json")
-LIVE_PATH = os.path.join(REPO_ROOT, "data", "live-status.json")
+def _locate(filename):
+    """Find a data file whether the repo uses the data/ folder layout or a
+    flattened one (a GitHub web-UI upload puts everything at the root).
+    Falls back to the data/ path so a fresh checkout still writes there."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(here)
+    candidates = [
+        os.path.join(repo_root, "data", filename),
+        os.path.join(repo_root, filename),
+        os.path.join(here, "data", filename),
+        os.path.join(here, filename),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
+
+TRIPS_PATH = _locate("trips.json")
+LIVE_PATH = _locate("live-status.json")
 
 API_KEY = os.environ.get("AVIATIONSTACK_KEY")
 API_URL = "https://api.aviationstack.com/v1/flights"

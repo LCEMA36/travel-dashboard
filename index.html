@@ -74,17 +74,21 @@
     position: fixed;
     inset: 0;
     z-index: -2;
-    background-image: url('assets/beau-delta-bg-mobile.jpg');
-    background-size: cover;
+    /* Two URLs so this works whether the images sit in assets/ or at the
+       repo root (a GitHub web-UI upload flattens folders). A layer whose
+       file 404s simply doesn't paint, so whichever one exists shows. */
+    background-image: url('assets/beau-delta-bg-mobile.jpg'), url('beau-delta-bg-mobile.jpg');
+    background-size: cover, cover;
     /* A 16:9 image cropped into a tall phone screen only shows a narrow
        vertical slice — anchor it on the pilot (~30% across) so the subject
        is what's visible, not a random patch of fuselage. */
-    background-position: 30% center;
+    background-position: 30% center, 30% center;
+    background-repeat: no-repeat, no-repeat;
   }
   @media (min-width: 800px) {
     .bg-layer {
-      background-image: url('assets/beau-delta-bg.jpg');
-      background-position: center 30%;
+      background-image: url('assets/beau-delta-bg.jpg'), url('beau-delta-bg.jpg');
+      background-position: center 30%, center 30%;
     }
   }
   .bg-scrim {
@@ -337,8 +341,22 @@
   </div>
 
 <script>
-const DATA_URL = 'data/trips.json';
-const LIVE_URL = 'data/live-status.json';
+// Try the data/ folder first, then the repo root — so this works both with
+// the proper folder layout and with a flattened GitHub web-UI upload.
+const DATA_URLS = ['data/trips.json', 'trips.json'];
+const LIVE_URLS = ['data/live-status.json', 'live-status.json'];
+
+async function fetchFirst(paths) {
+  let lastErr;
+  for (const p of paths) {
+    try {
+      const res = await fetch(p + '?_=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) return await res.json();
+      lastErr = new Error(p + ' -> HTTP ' + res.status);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('no data source found');
+}
 
 // Trip times are stored with an explicit UTC offset representing the LOCAL
 // time at that airport/hotel (e.g. departure time as printed on the ticket).
@@ -490,12 +508,9 @@ function renderHotels(trips) {
 
 async function load() {
   try {
-    const [tripsRes, liveRes] = await Promise.all([
-      fetch(DATA_URL + '?_=' + Date.now()),
-      fetch(LIVE_URL + '?_=' + Date.now())
-    ]);
-    const trips = await tripsRes.json();
-    const live = await liveRes.json();
+    const trips = await fetchFirst(DATA_URLS);
+    // Live status is optional — the dashboard is still useful without it.
+    const live = await fetchFirst(LIVE_URLS).catch(() => ({ flights: [] }));
 
     renderFlights(trips, live);
     renderHotels(trips);
