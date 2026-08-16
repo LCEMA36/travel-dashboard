@@ -5,6 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0B1A2E">
 <title>Beau's Travel Dashboard</title>
+<meta name="description" content="Flights and hotels for Beau's Cox Automotive travel, with live flight status.">
+
+<!-- Link preview (what family sees when this is shared in Messages, Slack, etc.) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Beau's Travel Dashboard">
+<meta property="og:title" content="Beau's Travel Dashboard">
+<meta property="og:description" content="Flights &amp; Hotels — Cox Automotive Travel. Live flight status, gates and delays.">
+<meta property="og:url" content="https://lcema36.github.io/travel-dashboard/">
+<!-- Must be an absolute URL; relative paths are ignored by every scraper. -->
+<meta property="og:image" content="https://lcema36.github.io/travel-dashboard/assets/beau-delta-bg.jpg">
+<meta property="og:image:width" content="1672">
+<meta property="og:image:height" content="941">
+<meta property="og:image:alt" content="Beau in a Delta pilot uniform beside a Delta aircraft.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Beau's Travel Dashboard">
+<meta name="twitter:description" content="Flights &amp; Hotels — Cox Automotive Travel. Live flight status, gates and delays.">
+<meta name="twitter:image" content="https://lcema36.github.io/travel-dashboard/assets/beau-delta-bg.jpg">
+
+<!-- Emoji favicon, inline so there's no extra file to keep in sync. -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%88%EF%B8%8F</text></svg>">
 <style>
   /* ------------------------------------------------------------------
      Palette sampled directly from the Delta artwork used as the
@@ -364,6 +384,15 @@
   /* Contrast on the card surface: sky-light 6.9:1, gold-light 10.5:1 */
   .action-track { color: var(--sky-light); }
   .action-call  { color: var(--gold-light); }
+  .action-uber  { color: var(--text-primary); }
+
+  /* Quick-rides block: same pills, but the card has no content above them
+     so they don't need the divider rule. */
+  .actions-flush { margin-top: 0; padding-top: 0; border-top: 0; }
+  .quick-note {
+    font-size: 12.5px; color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
 
   .empty {
     color: var(--text-muted); font-size: 13.5px;
@@ -414,6 +443,14 @@
     <section>
       <div class="section-title">Hotels</div>
       <div id="hotelsList"></div>
+    </section>
+
+    <section>
+      <div class="section-title">Quick rides</div>
+      <div class="card">
+        <div class="quick-note">Uber from wherever you are now:</div>
+        <div class="actions actions-flush" id="quickRides"></div>
+      </div>
     </section>
 
     <footer>
@@ -552,6 +589,64 @@ function appleMapsUrl(h) {
 function wazeUrl(h) {
   const d = hotelDestination(h);
   return d ? 'https://waze.com/ul?q=' + encodeURIComponent(d) + '&navigate=yes' : null;
+}
+
+// Uber. NOTE: the documented m.uber.com/ul/?action=setPickup deep link only
+// prefills inside the native app — on the web it silently drops the params and
+// dumps you on a blank "Request a ride" page (verified). This /looking?drop[0]
+// form is what Uber's own site uses; it prefills the dropoff in the browser and
+// still hands off to the app on a phone.
+function uberUrl(dest) {
+  const lat = parseFloat(dest.lat), lon = parseFloat(dest.lon);
+  if (!isFinite(lat) || !isFinite(lon)) return null;
+  const drop = {
+    addressLine1: dest.addressLine1 || dest.name || '',
+    addressLine2: dest.addressLine2 || '',
+    latitude: lat,
+    longitude: lon,
+    source: 'SEARCH'
+  };
+  return 'https://m.uber.com/looking?drop%5B0%5D=' + encodeURIComponent(JSON.stringify(drop));
+}
+
+// Hotels arrive with one combined address string; split it into the two lines
+// Uber expects so the dropoff card reads properly.
+function uberForHotel(h) {
+  const addr = h.address || h.city || '';
+  const i = addr.indexOf(',');
+  return uberUrl({
+    addressLine1: i > 0 ? addr.slice(0, i).trim() : (h.name || addr),
+    addressLine2: i > 0 ? addr.slice(i + 1).trim() : '',
+    lat: h.lat, lon: h.lon
+  });
+}
+
+// Places Beau rides to regularly. Coordinates geocoded and spot-checked —
+// "Cox Enterprises" resolves to 6205-B Peachtree Dunwoody Rd exactly.
+const QUICK_RIDES = [
+  { label: 'Cox Automotive Office', icon: '🏢',
+    addressLine1: '6205-B Peachtree Dunwoody Rd', addressLine2: 'Atlanta, GA 30328',
+    lat: 33.9249597, lon: -84.3501604 },
+  { label: 'ATL Airport', icon: '🛫',
+    addressLine1: 'Hartsfield-Jackson Atlanta International Airport', addressLine2: 'Atlanta, GA',
+    lat: 33.6374009, lon: -84.4298161 },
+  { label: 'LGA Airport', icon: '🛫',
+    addressLine1: 'LaGuardia Airport', addressLine2: 'Queens, NY',
+    lat: 40.7757145, lon: -73.8733640 },
+  { label: 'MIA Airport', icon: '🛫',
+    addressLine1: 'Miami International Airport', addressLine2: 'Miami, FL',
+    lat: 25.7949789, lon: -80.2867234 },
+  { label: 'FLL Airport', icon: '🛫',
+    addressLine1: 'Fort Lauderdale-Hollywood International Airport', addressLine2: 'Fort Lauderdale, FL',
+    lat: 26.0720170, lon: -80.1509967 }
+];
+
+function renderQuickRides() {
+  const el = document.getElementById('quickRides');
+  if (!el) return;
+  el.innerHTML = QUICK_RIDES
+    .map(d => actionLink(uberUrl(d), d.icon, d.label, 'action-uber'))
+    .filter(Boolean).join('');
 }
 
 // ---------- map preview ----------
@@ -718,6 +813,7 @@ function renderHotels(trips) {
     const links = [
       actionLink(appleMapsUrl(h), '🗺️', 'Apple Maps', ''),
       actionLink(wazeUrl(h), '🚗', 'Waze', ''),
+      actionLink(uberForHotel(h), '🚕', 'Uber', 'action-uber'),
       actionLink(phone ? telHref(phone) : null, '📞', phone || 'Call', 'action-call')
     ].filter(Boolean).join('');
 
@@ -763,6 +859,10 @@ dimToggle.addEventListener('click', () => {
   document.documentElement.setAttribute('data-dim', on ? 'off' : 'on');
   dimToggle.textContent = on ? 'Dim photo' : 'Show photo';
 });
+
+// Quick rides are static destinations — render them independently of the trip
+// fetch so they still work if trips.json ever fails to load.
+renderQuickRides();
 
 load();
 setInterval(load, 5 * 60 * 1000);
