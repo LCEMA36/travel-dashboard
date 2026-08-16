@@ -587,7 +587,10 @@ function mapPreview(h) {
     for (let y = y0; y <= y1; y++) {
       const left = Math.round(x * 256 - originX);
       const top = Math.round(y * 256 - originY);
-      tiles += `<img class="tile" alt="" aria-hidden="true" loading="lazy" `
+      // Deliberately NOT loading="lazy": the tile layer is centred with a
+      // CSS transform, which stops the browser's intersection check from
+      // ever firing for these images, so lazy tiles simply never load.
+      tiles += `<img class="tile" alt="" aria-hidden="true" decoding="async" `
         + `src="https://tile.openstreetmap.org/${MAP_ZOOM}/${x}/${y}.png" `
         + `style="left:${left}px;top:${top}px">`;
     }
