@@ -66,6 +66,9 @@ import json
 import os
 import re
 import sys
+import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, date, timezone, timedelta
 
@@ -318,6 +321,39 @@ def assign_purpose(items, date_key, trip_windows, default="Cox Automotive"):
         item.pop("_sort_key", None)
 
 
+def geocode(address, cache):
+    """Look up lat/lon for a hotel address so the dashboard can draw a map
+    preview. Uses Nominatim (free, no key). Results are cached by address in
+    the previous trips.json, so a repeat sync doesn't re-query — Nominatim's
+    usage policy asks for exactly that kind of restraint."""
+    if not address:
+        return None, None
+    if address in cache:
+        return cache[address]
+
+    url = ("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="
+           + urllib.parse.quote(address))
+    try:
+        req = urllib.request.Request(url, headers={
+            # Nominatim requires an identifying User-Agent.
+            "User-Agent": "travel-dashboard/1.0 (github.com/LCEMA36/travel-dashboard)"
+        })
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            hits = json.loads(resp.read().decode())
+        if hits:
+            lat, lon = hits[0].get("lat"), hits[0].get("lon")
+            cache[address] = (lat, lon)
+            print(f"  geocoded {address[:45]!r} -> {lat},{lon}")
+            time.sleep(1.1)   # Nominatim asks for <= 1 request/second
+            return lat, lon
+        print(f"  WARN: no geocode result for {address[:45]!r}", file=sys.stderr)
+    except Exception as e:
+        # A map is a nice-to-have — never fail the sync over it.
+        print(f"  WARN: geocoding failed for {address[:45]!r}: {e}", file=sys.stderr)
+    cache[address] = (None, None)
+    return None, None
+
+
 def main():
     if not FEED_URL:
         msg = ("TRIPIT_ICAL_URL is not set. Add it under "
@@ -437,6 +473,15 @@ def main():
 
     with open(TRIPS_PATH, "r") as f:
         trips = json.load(f)
+
+    # Reuse coordinates we already looked up, keyed by address.
+    geo_cache = {}
+    for old in trips.get("hotels", []):
+        if old.get("address") and old.get("lat") and old.get("lon"):
+            geo_cache[old["address"]] = (old["lat"], old["lon"])
+
+    for h in hotels:
+        h["lat"], h["lon"] = geocode(h.get("address"), geo_cache)
 
     trips["flights"] = flights
     trips["hotels"] = hotels
