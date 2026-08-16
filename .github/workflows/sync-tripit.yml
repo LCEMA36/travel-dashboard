@@ -26,6 +26,10 @@ jobs:
       - name: Sync trips from TripIt
         env:
           TRIPIT_ICAL_URL: ${{ secrets.TRIPIT_ICAL_URL }}
+          # Optional. Unset = no push notifications, sync works as before.
+          # Kept in a secret because the topic name is the only thing making
+          # these messages private, and this repo is public.
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           # Works whether the repo uses scripts/ or has everything at the root.
           SCRIPT=$(ls scripts/sync_tripit_calendar.py sync_tripit_calendar.py 2>/dev/null | head -1)
