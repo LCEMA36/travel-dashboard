@@ -115,19 +115,16 @@
     justify-content: space-between;
     gap: 14px;
   }
-  .title-row { display: flex; align-items: center; gap: 11px; }
+  .title-row { display: flex; align-items: center; gap: 10px; }
 
-  /* The Delta "widget" — two triangles, drawn in CSS */
-  .widget {
-    width: 26px; height: 24px; flex: none;
-    position: relative; top: 1px;
+  .plane {
+    font-size: 22px;
+    line-height: 1;
+    flex: none;
+    position: relative;
+    top: 1px;
+    filter: drop-shadow(0 1px 6px rgba(0,0,0,0.45));
   }
-  .widget span {
-    position: absolute; inset: 0;
-    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-  }
-  .widget .w-red  { background: var(--delta-red); }
-  .widget .w-navy { background: var(--sky); clip-path: polygon(50% 0%, 50% 100%, 0% 100%); }
 
   h1 {
     font-size: 21px;
@@ -284,6 +281,36 @@
   }
   .hotel-dates .val { font-weight: 600; }
 
+  /* ---------- action links (FlightAware / maps / call) ---------- */
+  .actions {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 13px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(245, 241, 232, 0.09);
+  }
+  .action {
+    display: inline-flex; align-items: center; gap: 6px;
+    /* 40px min height keeps these comfortable thumb targets on a phone */
+    min-height: 40px;
+    padding: 9px 13px;
+    border-radius: 9px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid rgba(245, 241, 232, 0.16);
+    background: rgba(20, 41, 74, 0.72);
+    color: var(--text-secondary);
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  }
+  .action:hover, .action:focus-visible {
+    background: rgba(27, 79, 141, 0.55);
+    border-color: rgba(91, 174, 247, 0.5);
+    color: var(--text-primary);
+  }
+  .action .ico { font-size: 14px; line-height: 1; }
+  /* Contrast on the card surface: sky-light 6.9:1, gold-light 10.5:1 */
+  .action-track { color: var(--sky-light); }
+  .action-call  { color: var(--gold-light); }
+
   .empty {
     color: var(--text-muted); font-size: 13.5px;
     padding: 24px 18px; text-align: center;
@@ -315,10 +342,10 @@
     <header>
       <div>
         <div class="title-row">
-          <div class="widget" role="presentation"><span class="w-red"></span><span class="w-navy"></span></div>
+          <span class="plane" role="img" aria-label="Airplane">✈️</span>
           <h1>Beau's Travel Dashboard</h1>
         </div>
-        <div class="subtitle">Flights &amp; hotels — Cox Automotive travel</div>
+        <div class="subtitle">Flights &amp; Hotels — Cox Automotive Travel</div>
       </div>
       <button class="dim-toggle" id="dimToggle" type="button">Dim photo</button>
     </header>
@@ -413,6 +440,52 @@ function esc(str) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
+// ---------- deep links ----------
+
+// FlightAware accepts the IATA ident (e.g. DL1625) and redirects to the
+// canonical tracking page for that flight.
+function flightAwareUrl(f) {
+  const ident = (f.flight_number || '').replace(/\s+/g, '');
+  return ident ? 'https://www.flightaware.com/live/flight/' + encodeURIComponent(ident) : null;
+}
+
+// The sync writes a `phone` field, but older records only have the number
+// buried in the raw TripIt text — pull it out of there as a fallback so the
+// Call button works either way.
+function hotelPhone(h) {
+  if (h.phone) return h.phone;
+  const m = /(\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4})/.exec(h.raw_description || '');
+  return m ? m[1] : null;
+}
+function telHref(phone) {
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 10) return 'tel:+1' + digits;          // US number as TripIt writes it
+  if (digits.length === 11 && digits[0] === '1') return 'tel:+' + digits;
+  return 'tel:' + digits;
+}
+
+// Prefer name + address so the map lands on the actual hotel rather than
+// just the street.
+function hotelDestination(h) {
+  return [h.name, h.address || h.city].filter(Boolean).join(', ');
+}
+function appleMapsUrl(h) {
+  const d = hotelDestination(h);
+  return d ? 'https://maps.apple.com/?daddr=' + encodeURIComponent(d) + '&dirflg=d' : null;
+}
+function wazeUrl(h) {
+  const d = hotelDestination(h);
+  return d ? 'https://waze.com/ul?q=' + encodeURIComponent(d) + '&navigate=yes' : null;
+}
+
+function actionLink(href, icon, label, cls) {
+  if (!href) return '';
+  const external = !href.startsWith('tel:');
+  return `<a class="action ${cls || ''}" href="${esc(href)}"`
+    + (external ? ' target="_blank" rel="noopener noreferrer"' : '')
+    + `><span class="ico" aria-hidden="true">${icon}</span>${esc(label)}</a>`;
+}
+
 function renderFlights(trips, live) {
   const container = document.getElementById('flightsList');
   const now = Date.now();
@@ -477,6 +550,9 @@ function renderFlights(trips, live) {
         </div>
         ${purposeBits.length ? `<div class="flight-purpose">${purposeBits.join(' · ')}</div>` : ''}
         ${livePanel}
+        ${actionLink(flightAwareUrl(f), '📡', 'Track on FlightAware', 'action-track')
+            ? `<div class="actions">${actionLink(flightAwareUrl(f), '📡', 'Track on FlightAware', 'action-track')}</div>`
+            : ''}
       </div>`;
   }).join('');
 }
@@ -493,7 +569,15 @@ function renderHotels(trips) {
     return;
   }
 
-  container.innerHTML = hotels.map(h => `
+  container.innerHTML = hotels.map(h => {
+    const phone = hotelPhone(h);
+    const links = [
+      actionLink(appleMapsUrl(h), '🗺️', 'Apple Maps', ''),
+      actionLink(wazeUrl(h), '🚗', 'Waze', ''),
+      actionLink(phone ? telHref(phone) : null, '📞', phone || 'Call', 'action-call')
+    ].filter(Boolean).join('');
+
+    return `
     <div class="card">
       <div class="hotel-name">${esc(h.name || h.raw_summary || 'Hotel stay')}</div>
       ${(h.address || h.city) ? `<div class="hotel-meta">${esc(h.address || h.city)}</div>` : ''}
@@ -503,7 +587,9 @@ function renderHotels(trips) {
         ${h.confirmation ? `<div><span class="label">Conf#</span><span class="val">${esc(h.confirmation)}</span></div>` : ''}
       </div>
       ${h.purpose ? `<div class="flight-purpose">${esc(h.purpose)}</div>` : ''}
-    </div>`).join('');
+      ${links ? `<div class="actions">${links}</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 async function load() {
