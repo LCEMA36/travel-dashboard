@@ -3,36 +3,118 @@
   "traveler": "Beau Moore",
   "flights": [
     {
-      "id": "example-flight-1",
-      "airline": "Delta",
-      "flight_number": "DL1234",
+      "id": "item-8b71536e-3621-9000-0003-0001496090e9@tripit.com",
+      "airline": "Delta Air Lines",
+      "flight_number": "DL1625",
       "origin": {
+        "airport": "MEM",
+        "city": null,
+        "terminal": null,
+        "gate": "16",
+        "scheduled_departure": "2026-08-17T07:08:00-05:00"
+      },
+      "destination": {
         "airport": "ATL",
         "city": "Atlanta",
         "terminal": "S",
-        "scheduled_departure": "2026-08-20T08:15:00-04:00"
+        "gate": "B18",
+        "scheduled_arrival": "2026-08-17T09:28:00-04:00"
+      },
+      "confirmation": null,
+      "purpose": "Gravity Meeting",
+      "raw_summary": "DL1625 MEM to ATL"
+    },
+    {
+      "id": "item-7453971d-0d3b-9000-0003-0001496090f5@tripit.com",
+      "airline": "Delta Air Lines",
+      "flight_number": "DL2939",
+      "origin": {
+        "airport": "ATL",
+        "city": null,
+        "terminal": "S",
+        "gate": "A33",
+        "scheduled_departure": "2026-08-18T18:15:00-04:00"
       },
       "destination": {
-        "airport": "DFW",
-        "city": "Dallas",
-        "terminal": "D",
-        "scheduled_arrival": "2026-08-20T09:50:00-05:00"
+        "airport": "MEM",
+        "city": "Memphis",
+        "terminal": null,
+        "gate": "12",
+        "scheduled_arrival": "2026-08-18T18:39:00-05:00"
       },
-      "confirmation": "ABC123",
-      "purpose": "Cox Automotive",
-      "notes": "Example row — delete once real trips are added or replaced by TripIt sync."
+      "confirmation": null,
+      "purpose": "Gravity Meeting",
+      "raw_summary": "DL2939 ATL to MEM"
+    },
+    {
+      "id": "item-630001ad-a73c-9000-0003-000149610f59@tripit.com",
+      "airline": "Delta Air Lines",
+      "flight_number": "DL1624",
+      "origin": {
+        "airport": "MEM",
+        "city": null,
+        "terminal": null,
+        "gate": null,
+        "scheduled_departure": "2026-09-14T07:18:00-05:00"
+      },
+      "destination": {
+        "airport": "ATL",
+        "city": "Atlanta",
+        "terminal": "S",
+        "gate": null,
+        "scheduled_arrival": "2026-09-14T09:36:00-04:00"
+      },
+      "confirmation": null,
+      "purpose": "Five Star Auto Group ATL Accounts",
+      "raw_summary": "DL1624 MEM to ATL"
+    },
+    {
+      "id": "item-65c71435-db2e-9000-0003-000149610f5d@tripit.com",
+      "airline": "Delta Air Lines",
+      "flight_number": "DL1700",
+      "origin": {
+        "airport": "ATL",
+        "city": null,
+        "terminal": "S",
+        "gate": null,
+        "scheduled_departure": "2026-09-16T15:25:00-04:00"
+      },
+      "destination": {
+        "airport": "MEM",
+        "city": "Memphis",
+        "terminal": null,
+        "gate": null,
+        "scheduled_arrival": "2026-09-16T15:44:00-05:00"
+      },
+      "confirmation": null,
+      "purpose": "Five Star Auto Group ATL Accounts",
+      "raw_summary": "DL1700 ATL to MEM"
     }
   ],
   "hotels": [
     {
-      "id": "example-hotel-1",
-      "name": "Example Hotel & Suites",
-      "city": "Dallas",
-      "address": "123 Main St, Dallas, TX",
-      "check_in": "2026-08-20T15:00:00-05:00",
-      "check_out": "2026-08-22T11:00:00-05:00",
-      "confirmation": "HOTEL456",
-      "notes": "Example row — delete once real trips are added or replaced by TripIt sync."
+      "id": "item-443e734e-6042-9000-0003-000149609109@tripit.com",
+      "name": "The Westin Atlanta Perimeter North",
+      "city": null,
+      "address": "7 Concourse Pkwy NE, Atlanta, GA, 30328",
+      "check_in": "2026-08-17T15:00:00-04:00",
+      "check_out": "2026-08-18T11:00:00-04:00",
+      "confirmation": null,
+      "purpose": "Gravity Meeting",
+      "raw_summary": "Check-in: The Westin Atlanta Perimeter North",
+      "raw_description": "View and/or edit details in TripIt : https://www.tripit.com/trip/show/id/384878760\n \n\n3:00 PM EDT\n[Lodging] Arrive The Westin Atlanta Perimeter North\nCheck-In: 3:00pm\n7 Concourse Pkwy NE, Atlanta, GA, 30328\n770-395-3900\n \n\n \nTripIt - organize your travel at https://www.tripit.com"
+    },
+    {
+      "id": "item-c5318816-07cd-9000-0003-000149610f79@tripit.com",
+      "name": "The Westin Atlanta Perimeter North",
+      "city": null,
+      "address": "7 Concourse Pkwy NE, Atlanta, GA, 30328",
+      "check_in": "2026-09-14T15:00:00-04:00",
+      "check_out": "2026-09-16T11:00:00-04:00",
+      "confirmation": null,
+      "purpose": "Five Star Auto Group ATL Accounts",
+      "raw_summary": "Check-in: The Westin Atlanta Perimeter North",
+      "raw_description": "View and/or edit details in TripIt : https://www.tripit.com/trip/show/id/384879855\n \n\n3:00 PM EDT\n[Lodging] Arrive The Westin Atlanta Perimeter North\nCheck-In: 3:00pm\n7 Concourse Pkwy NE, Atlanta, GA, 30328\n770-395-3900\n \n\n \nTripIt - organize your travel at https://www.tripit.com"
     }
   ]
 }
