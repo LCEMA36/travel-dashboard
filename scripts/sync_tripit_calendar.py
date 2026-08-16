@@ -275,6 +275,8 @@ def merge_lodging(raw_events):
                 "address": (cin or cout or {}).get("address"),
                 "check_in": to_iso(cin["local_dt"]) if cin else None,
                 "check_out": to_iso(cout["local_dt"]) if cout else None,
+                # Used by the dashboard's "Call" button.
+                "phone": (cin or cout or {}).get("phone"),
                 "confirmation": None,
                 "purpose": None,
                 "raw_summary": (cin or cout)["raw_summary"],
