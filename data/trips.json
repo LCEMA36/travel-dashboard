@@ -17,7 +17,7 @@
         "airport": "ATL",
         "city": "Atlanta",
         "terminal": "S",
-        "gate": "B18",
+        "gate": "C52",
         "scheduled_arrival": "2026-08-17T09:28:00-04:00"
       },
       "confirmation": null,
@@ -32,7 +32,7 @@
         "airport": "ATL",
         "city": null,
         "terminal": "S",
-        "gate": "A33",
+        "gate": "C49",
         "scheduled_departure": "2026-08-18T18:15:00-04:00"
       },
       "destination": {
