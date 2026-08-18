@@ -3,28 +3,6 @@
   "traveler": "Beau Moore",
   "flights": [
     {
-      "id": "item-8b71536e-3621-9000-0003-0001496090e9@tripit.com",
-      "airline": "Delta Air Lines",
-      "flight_number": "DL1625",
-      "origin": {
-        "airport": "MEM",
-        "city": null,
-        "terminal": null,
-        "gate": "16",
-        "scheduled_departure": "2026-08-17T07:08:00-05:00"
-      },
-      "destination": {
-        "airport": "ATL",
-        "city": "Atlanta",
-        "terminal": "S",
-        "gate": "C40",
-        "scheduled_arrival": "2026-08-17T09:28:00-04:00"
-      },
-      "confirmation": null,
-      "purpose": "Gravity Meeting",
-      "raw_summary": "DL1625 MEM to ATL"
-    },
-    {
       "id": "item-7453971d-0d3b-9000-0003-0001496090f5@tripit.com",
       "airline": "Delta Air Lines",
       "flight_number": "DL2939",
