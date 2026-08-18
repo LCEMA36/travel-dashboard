@@ -32,14 +32,14 @@
         "airport": "ATL",
         "city": null,
         "terminal": "S",
-        "gate": "C49",
+        "gate": "B32",
         "scheduled_departure": "2026-08-18T18:15:00-04:00"
       },
       "destination": {
         "airport": "MEM",
         "city": "Memphis",
         "terminal": null,
-        "gate": "12",
+        "gate": "14",
         "scheduled_arrival": "2026-08-18T18:39:00-05:00"
       },
       "confirmation": null,
