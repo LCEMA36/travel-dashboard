@@ -3,28 +3,6 @@
   "traveler": "Beau Moore",
   "flights": [
     {
-      "id": "item-7453971d-0d3b-9000-0003-0001496090f5@tripit.com",
-      "airline": "Delta Air Lines",
-      "flight_number": "DL2939",
-      "origin": {
-        "airport": "ATL",
-        "city": null,
-        "terminal": "S",
-        "gate": "D2",
-        "scheduled_departure": "2026-08-18T18:15:00-04:00"
-      },
-      "destination": {
-        "airport": "MEM",
-        "city": "Memphis",
-        "terminal": null,
-        "gate": "14",
-        "scheduled_arrival": "2026-08-18T18:39:00-05:00"
-      },
-      "confirmation": null,
-      "purpose": "Gravity Meeting",
-      "raw_summary": "DL2939 ATL to MEM"
-    },
-    {
       "id": "item-630001ad-a73c-9000-0003-000149610f59@tripit.com",
       "airline": "Delta Air Lines",
       "flight_number": "DL1624",
