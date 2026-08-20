@@ -3,6 +3,50 @@
   "traveler": "Beau Moore",
   "flights": [
     {
+      "id": "item-53806d8d-ff5b-9000-0003-000149eef225@tripit.com",
+      "airline": "Delta Air Lines",
+      "flight_number": "DL1149",
+      "origin": {
+        "airport": "MEM",
+        "city": null,
+        "terminal": null,
+        "gate": null,
+        "scheduled_departure": "2026-08-25T09:26:00-05:00"
+      },
+      "destination": {
+        "airport": "ATL",
+        "city": "Atlanta",
+        "terminal": "S",
+        "gate": null,
+        "scheduled_arrival": "2026-08-25T11:43:00-04:00"
+      },
+      "confirmation": null,
+      "purpose": "ALM Meeting",
+      "raw_summary": "DL1149 MEM to ATL"
+    },
+    {
+      "id": "item-81d7e642-26cb-9000-0003-000149eef22d@tripit.com",
+      "airline": "Delta Air Lines",
+      "flight_number": "DL1811",
+      "origin": {
+        "airport": "ATL",
+        "city": null,
+        "terminal": "S",
+        "gate": null,
+        "scheduled_departure": "2026-08-26T20:15:00-04:00"
+      },
+      "destination": {
+        "airport": "MEM",
+        "city": "Memphis",
+        "terminal": null,
+        "gate": null,
+        "scheduled_arrival": "2026-08-26T20:40:00-05:00"
+      },
+      "confirmation": null,
+      "purpose": "ALM Meeting",
+      "raw_summary": "DL1811 ATL to MEM"
+    },
+    {
       "id": "item-630001ad-a73c-9000-0003-000149610f59@tripit.com",
       "airline": "Delta Air Lines",
       "flight_number": "DL1624",
@@ -48,6 +92,21 @@
     }
   ],
   "hotels": [
+    {
+      "id": "item-9656fe7a-de9a-9000-0003-000149eef251@tripit.com",
+      "name": "AC Hotel by Marriott Atlanta Perimeter",
+      "city": null,
+      "address": "40 Perimeter Center Place, Dunwoody, GA, 30346",
+      "check_in": "2026-08-25T15:00:00-04:00",
+      "check_out": "2026-08-26T11:00:00-04:00",
+      "phone": "404-267-5190",
+      "confirmation": null,
+      "purpose": "ALM Meeting",
+      "raw_summary": "Check-in: AC Hotel by Marriott Atlanta Perimeter",
+      "raw_description": "View and/or edit details in TripIt : https://www.tripit.com/trip/show/id/385211179\n \n\n3:00 PM EDT\n[Lodging] Arrive AC Hotel by Marriott Atlanta Perimeter\nCheck-In: 3:00pm\n40 Perimeter Center Place, Dunwoody, GA, 30346\n404-267-5190\n \n\n \nTripIt - organize your travel at https://www.tripit.com",
+      "lat": "33.9279256",
+      "lon": "-84.3415177"
+    },
     {
       "id": "item-c5318816-07cd-9000-0003-000149610f79@tripit.com",
       "name": "The Westin Atlanta Perimeter North",
