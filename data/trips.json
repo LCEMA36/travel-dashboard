@@ -10,14 +10,14 @@
         "airport": "MEM",
         "city": null,
         "terminal": null,
-        "gate": "19",
+        "gate": "14",
         "scheduled_departure": "2026-08-25T09:26:00-05:00"
       },
       "destination": {
         "airport": "ATL",
         "city": "Atlanta",
         "terminal": "S",
-        "gate": "C49",
+        "gate": "D1",
         "scheduled_arrival": "2026-08-25T11:43:00-04:00"
       },
       "confirmation": null,
