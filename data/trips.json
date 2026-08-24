@@ -39,7 +39,7 @@
         "airport": "MEM",
         "city": "Memphis",
         "terminal": null,
-        "gate": "18",
+        "gate": "9",
         "scheduled_arrival": "2026-08-26T20:40:00-05:00"
       },
       "confirmation": null,
