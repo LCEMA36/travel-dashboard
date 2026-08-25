@@ -15,10 +15,10 @@
       },
       "destination": {
         "airport": "ATL",
-        "city": "Atlanta",
-        "terminal": "S",
-        "gate": "B16",
-        "scheduled_arrival": "2026-08-25T11:43:00-04:00"
+        "city": null,
+        "terminal": null,
+        "gate": null,
+        "scheduled_arrival": "2026-08-25T15:43:00+00:00"
       },
       "confirmation": null,
       "purpose": "ALM Meeting",
