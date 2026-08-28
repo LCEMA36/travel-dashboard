@@ -3,28 +3,6 @@
   "traveler": "Beau Moore",
   "flights": [
     {
-      "id": "item-81d7e642-26cb-9000-0003-000149eef22d@tripit.com",
-      "airline": "Delta Air Lines",
-      "flight_number": "DL1811",
-      "origin": {
-        "airport": "ATL",
-        "city": null,
-        "terminal": "S",
-        "gate": "D32",
-        "scheduled_departure": "2026-08-26T20:15:00-04:00"
-      },
-      "destination": {
-        "airport": "MEM",
-        "city": "Memphis",
-        "terminal": null,
-        "gate": "12",
-        "scheduled_arrival": "2026-08-26T20:40:00-05:00"
-      },
-      "confirmation": null,
-      "purpose": "ALM Meeting",
-      "raw_summary": "DL1811 ATL to MEM"
-    },
-    {
       "id": "item-630001ad-a73c-9000-0003-000149610f59@tripit.com",
       "airline": "Delta Air Lines",
       "flight_number": "DL1624",
