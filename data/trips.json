@@ -3,28 +3,6 @@
   "traveler": "Beau Moore",
   "flights": [
     {
-      "id": "item-c395f5e6-0b41-9000-0003-00014a864cb1@tripit.com",
-      "airline": "Delta Air Lines",
-      "flight_number": "DL1149",
-      "origin": {
-        "airport": "MEM",
-        "city": null,
-        "terminal": null,
-        "gate": null,
-        "scheduled_departure": "2026-09-02T09:26:00-05:00"
-      },
-      "destination": {
-        "airport": "ATL",
-        "city": "Atlanta",
-        "terminal": "S",
-        "gate": null,
-        "scheduled_arrival": "2026-09-02T11:43:00-04:00"
-      },
-      "confirmation": null,
-      "purpose": "ALM Meeting Sept",
-      "raw_summary": "DL1149 MEM to ATL"
-    },
-    {
       "id": "item-ee610a96-9e92-9000-0003-00014a864cb5@tripit.com",
       "airline": "Delta Air Lines",
       "flight_number": "DL552",
