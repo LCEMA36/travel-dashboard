@@ -71,21 +71,6 @@
   ],
   "hotels": [
     {
-      "id": "item-9c608f68-42e5-9000-0003-00014a864cd1@tripit.com",
-      "name": "The Westin Atlanta Perimeter North",
-      "city": null,
-      "address": "7 Concourse Pkwy NE, Atlanta, GA, 30328",
-      "check_in": "2026-09-02T15:00:00-04:00",
-      "check_out": "2026-09-03T11:00:00-04:00",
-      "phone": "770-395-3900",
-      "confirmation": null,
-      "purpose": "ALM Meeting Sept",
-      "raw_summary": "Check-in: The Westin Atlanta Perimeter North",
-      "raw_description": "View and/or edit details in TripIt : https://www.tripit.com/trip/show/id/385559849\n \n\n3:00 PM EDT\n[Lodging] Arrive The Westin Atlanta Perimeter North\nCheck-In: 3:00pm\n7 Concourse Pkwy NE, Atlanta, GA, 30328\n770-395-3900\n \n\n \nTripIt - organize your travel at https://www.tripit.com",
-      "lat": "33.9154236",
-      "lon": "-84.3545845"
-    },
-    {
       "id": "item-c5318816-07cd-9000-0003-000149610f79@tripit.com",
       "name": "The Westin Atlanta Perimeter North",
       "city": null,
